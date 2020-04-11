@@ -1,0 +1,3 @@
+[submodule "Borderlands3Protos"]
+	path = Borderlands3Protos
+	url = https://github.com/gibbed/Borderlands3Protos/
