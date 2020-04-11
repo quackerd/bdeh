@@ -5,6 +5,7 @@ import OakSave_pb2
 dk1 = bytearray([0x71, 0x34, 0x36, 0xB3, 0x56, 0x63, 0x25, 0x5F, 0xEA, 0xE2, 0x83, 0x73, 0xF4, 0x98, 0xB8, 0x18, 0x2E, 0xE5, 0x42, 0x2E, 0x50, 0xA2, 0x0F, 0x49, 0x87, 0x24, 0xE6, 0x65, 0x9A, 0xF0, 0x7C, 0xD7])
 dk2 = bytearray([0x7C, 0x07, 0x69, 0x83, 0x31, 0x7E, 0x0C, 0x82, 0x5F, 0x2E, 0x36, 0x7F, 0x76, 0xB4, 0xA2, 0x71, 0x38, 0x2B, 0x6E, 0x87, 0x39, 0x05, 0x02, 0xC6, 0xCD, 0xD8, 0xB1, 0xCC, 0xA1, 0x33, 0xF9, 0xB6])
 
+
 def write_u32_le(sc : bytearray, offset : int, val: int):
     sc[offset] = val & 0xFF
     sc[offset + 1] = (val >> 8) & 0xFF
@@ -81,6 +82,135 @@ def encrypt(src : bytearray):
     return src
 
 def editor(save_obj):
+    TYPE_INT = 0
+    TYPE_FLOAT = 1
+    TYPE_STRING = 2
+    TYPE_DICT = 3
+    TYPE_BOOL = 4
+    TYPE_MS = 5 #MS_Complete or MS_Active
+    
+    OP_READ = 0
+    OP_WRITE = 1
+
+#only works for write since primitives will be copied
+    vMap = {
+        'save_game_id': {
+            'func': save_obj.save_game_id,
+            'type': TYPE_INT 
+        },
+        'last_save_timestamp': {
+            'func': save_obj.last_save_timestamp,
+            'type': TYPE_INT
+        },
+        'time_played_seconds': {
+            'func': save_obj.time_played_seconds,
+            'type': TYPE_INT
+        },
+        'player_class_data': {
+            'func': save_obj.player_class_data,
+            'type': TYPE_DICT
+        },
+        'resource_pools': {
+            'func': save_obj.resource_pools,
+            'type': TYPE_DICT
+        },
+        'saved_regions': {
+            'func': save_obj.saved_regions,
+            'type': TYPE_DICT
+        },
+        'experience_points': {
+            'func': save_obj.experience_points,
+            'type': TYPE_INT
+        },
+        'game_stats_data': {
+            'func': save_obj.game_stats_data,
+            'type': TYPE_DICT
+        },
+        'inventory_category_list': {
+            'func': save_obj.inventory_category_list,
+            'type': TYPE_DICT
+        },
+        'inventory_items': {
+            'func': save_obj.inventory_items,
+            'type': TYPE_DICT
+        }
+    }
+
+    def show(vType):
+        if vType in vMap:
+            print("==========================\n")
+            print(str(vType) + ": " + str(vMap[vType]['func']))
+            print("==========================\n")
+            return
+        print("Error: " + str(vType) + " is not a valid value.")
+
+    def cash(op, cType, val): #op 0 read 1 write cType 0 cash 1 eridium
+        hashVal = 0
+        if cType == 0:
+            hashVal = 618814354
+        elif cType == 1:
+            hashVal = 3679636065
+
+        for i in save_obj.inventory_category_list:
+            if i.base_category_definition_hash == hashVal:
+                if cType == 0:
+                    print("Current cash: " + str(i.quantity))
+                elif cType == 1:
+                    print("Current eridium: " + str(i.quantity))
+                if op == OP_WRITE:
+                    i.quantity = int(val)
+                    print("Success.\n")
+                return
+        print("Error: Cash category hash is not existing.")
+
+    def experience_points(op, val):
+        print("Current experience points: " + str(save_obj.experience_points))
+        if op == OP_WRITE:
+            save_obj.experience_points = int(val)
+            print("Success.\n")
+
+    def print_menu():
+        print("BdEH: Save Editor for Borderlands 3\n")
+        print("Commands:\nhelp\nget\nset\nsaveexit\nexit\n")
+
+    def command(input):
+        #try:
+            ele = input.split()
+            cmd = ele[0]
+            stat = ele[1]
+            if cmd == 'get':
+                if stat == 'cash':
+                    cash(OP_READ, 0, 0)
+                elif stat == 'eridium':
+                    cash(OP_READ, 1, 0)
+                elif stat == 'experience_points':
+                    experience_points(OP_READ, 0)
+                else:
+                    show(stat)
+            elif cmd == 'set':
+                if stat == 'cash':
+                    cash(OP_WRITE, 0, ele[2])
+                elif stat == 'eridium':
+                    cash(OP_WRITE, 1, ele[2])
+                elif stat == 'experience_points':
+                    experience_points(OP_WRITE, ele[2])
+            else:
+                print("Error: Invalid command")
+        #except:
+        #    print("Error: Invalid command.")
+
+    print_menu()
+    while True:
+        uin = input('Please input a command: ')
+        if uin == 'saveexit':
+            break
+        elif uin == 'exit':
+            exit()
+        command(uin) 
+
+    f = open('obj.txt', 'w')
+    f.write(str(save_obj))
+    f.close()
     return 
 
 def main():
